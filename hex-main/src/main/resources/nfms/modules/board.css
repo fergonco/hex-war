@@ -1,0 +1,12 @@
+html {
+	height: 100%
+}
+
+body {
+	height: 94%
+}
+
+#allscreen, #board-svg {
+	height: 100%;
+	width: 100%;
+}
