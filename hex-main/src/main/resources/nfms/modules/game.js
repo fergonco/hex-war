@@ -1,4 +1,4 @@
-define([ "message-bus", "plyAutomata" ], function(bus, ply) {
+define([ "message-bus", "plyAutomata", "boardConf" ], function(bus, ply, boardConf) {
 
 	var WAITFORCLICK = 0, WAITFORDESTINATION = 1;
 
@@ -12,6 +12,8 @@ define([ "message-bus", "plyAutomata" ], function(bus, ply) {
 
 	bus.listen("start-game", function(e, theBoard) {
 		board = theBoard;
+		board.putArmy(0, 0, 50);
+		board.putArmy(1, 24, 50);
 		currentPlayer = -1;
 		sourcePosition = null;
 		status = WAITFORCLICK;
@@ -72,14 +74,14 @@ define([ "message-bus", "plyAutomata" ], function(bus, ply) {
 
 	function pushIfValid(array, sourcePosition, targetPosition) {
 		var validMoves = [];
-		validMoves[board.TERRAIN_TYPE_FLAT] = [ board.TERRAIN_TYPE_FLAT, board.TERRAIN_TYPE_CITY,
-				board.TERRAIN_TYPE_PORT ];
-		validMoves[board.TERRAIN_TYPE_CITY] = [ board.TERRAIN_TYPE_FLAT, board.TERRAIN_TYPE_CITY,
-				board.TERRAIN_TYPE_PORT ];
-		validMoves[board.TERRAIN_TYPE_PORT] = [ board.TERRAIN_TYPE_FLAT, board.TERRAIN_TYPE_CITY,
-				board.TERRAIN_TYPE_PORT, board.TERRAIN_TYPE_WATER ];
-		validMoves[board.TERRAIN_TYPE_WATER] = [ board.TERRAIN_TYPE_PORT, board.TERRAIN_TYPE_WATER ];
-		validMoves[board.TERRAIN_TYPE_MOUNTAIN] = [];
+		validMoves[boardConf.TERRAIN_TYPE_FLAT] = [ boardConf.TERRAIN_TYPE_FLAT, boardConf.TERRAIN_TYPE_CITY,
+				boardConf.TERRAIN_TYPE_PORT ];
+		validMoves[boardConf.TERRAIN_TYPE_CITY] = [ boardConf.TERRAIN_TYPE_FLAT, boardConf.TERRAIN_TYPE_CITY,
+				boardConf.TERRAIN_TYPE_PORT ];
+		validMoves[boardConf.TERRAIN_TYPE_PORT] = [ boardConf.TERRAIN_TYPE_FLAT, boardConf.TERRAIN_TYPE_CITY,
+				boardConf.TERRAIN_TYPE_PORT, boardConf.TERRAIN_TYPE_WATER ];
+		validMoves[boardConf.TERRAIN_TYPE_WATER] = [ boardConf.TERRAIN_TYPE_PORT, boardConf.TERRAIN_TYPE_WATER ];
+		validMoves[boardConf.TERRAIN_TYPE_MOUNTAIN] = [];
 		var targetType = board.types[targetPosition];
 		var sourceType = board.types[sourcePosition];
 		if (validMoves[sourceType].indexOf(targetType) != -1) {

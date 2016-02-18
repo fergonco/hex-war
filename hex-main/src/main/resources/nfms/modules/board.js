@@ -1,34 +1,20 @@
-define([ "message-bus", "hex", "plyAutomata", "d3" ], function(bus, hex, ply) {
+define([ "message-bus", "boardConf", "hex", "plyAutomata", "d3" ], function(bus, boardConf, hex, ply) {
 
 	var mode = "game"; // "map"
 	var playerColors = [ "red", "blue", "green" ];
 
 	var board = {
-		TERRAIN_TYPE_FLAT : 0,
-		TERRAIN_TYPE_MOUNTAIN : 1,
-		TERRAIN_TYPE_WATER : 2,
-		TERRAIN_TYPE_PORT : 3,
-		TERRAIN_TYPE_CITY : 4,
-		cols : 10,
-		rows : 10,
+		cols : boardConf.cols,
+		rows : boardConf.rows,
 		players : [ "ai", "human" ],
-		owners : [ 0, 0, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-				-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-				-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-				-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 1 ],
-		types : [ 4, 0, 3, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 4, 2, 2, 0, 0, 0, 0, 0, 2, 2, 0, 0, 2, 0, 4, 0, 2, 2, 0, 0,
-				2, 2, 2, 3, 2, 0, 0, 3, 0, 3, 2, 2, 2, 2, 0, 0, 4, 0, 1, 1, 2, 4, 0, 0, 0, 0, 0, 0, 1, 2, 2, 1, 0, 0,
-				1, 0, 0, 0, 1, 2, 3, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4 ],
-		armies : [ {
-			player : 0,
-			position : 1,
-			amount : 50
-		}, {
-			player : 1,
-			position : 2,
-			amount : 250
-		} ],
-
+		owners : [],
+		types : boardConf.cellTypes,
+		armies : [],
+		initialize : function() {
+			for (var i = 0; i < board.cols * board.rows; i++) {
+				owners.push(-1);
+			}
+		},
 		getCenter : function(i) {
 			var row = Math.floor(i / board.cols);
 			var col = Math.floor(i % board.cols);
@@ -42,6 +28,22 @@ define([ "message-bus", "hex", "plyAutomata", "d3" ], function(bus, hex, ply) {
 				x : x,
 				y : y
 			};
+		},
+		putArmy : function(player, position, amount) {
+			if (player >= board.players.length) {
+				throw "player index out of bounds";
+			}
+			for (var i = 0; i < board.armies.length; i++) {
+				if (board.armies[i].position == position) {
+					throw "the cell has already a position";
+				}
+			}
+			board.owners[position] = player;
+			board.armies.push({
+				player : player,
+				position : position,
+				amount : amount
+			})
 		},
 		getArmyIndex : function(position) {
 			for (var i = 0; i < board.armies.length; i++) {
@@ -68,8 +70,8 @@ define([ "message-bus", "hex", "plyAutomata", "d3" ], function(bus, hex, ply) {
 		getDefenseMultiplier : function(sourcePosition, targetPosition) {
 			var sourceType = board.types[sourcePosition];
 			var targetType = board.types[targetPosition];
-			if ((sourceType == board.TERRAIN_TYPE_FLAT && targetType == board.TERRAIN_TYPE_CITY)
-					|| (sourceType == board.TERRAIN_TYPE_WATER && targetType == board.TERRAIN_TYPE_PORT)) {
+			if ((sourceType == boardConf.TERRAIN_TYPE_FLAT && targetType == boardConf.TERRAIN_TYPE_CITY)
+					|| (sourceType == boardConf.TERRAIN_TYPE_WATER && targetType == boardConf.TERRAIN_TYPE_PORT)) {
 				return 4;
 			} else {
 				return 1;
@@ -178,15 +180,15 @@ define([ "message-bus", "hex", "plyAutomata", "d3" ], function(bus, hex, ply) {
 		selection//
 		.attr("fill", function(d) {
 			var type = board.types[d];
-			if (type == board.TERRAIN_TYPE_FLAT) {
+			if (type == boardConf.TERRAIN_TYPE_FLAT) {
 				return "#A56A6A";
-			} else if (type == board.TERRAIN_TYPE_MOUNTAIN) {
+			} else if (type == boardConf.TERRAIN_TYPE_MOUNTAIN) {
 				return "#dddddd";
-			} else if (type == board.TERRAIN_TYPE_WATER) {
+			} else if (type == boardConf.TERRAIN_TYPE_WATER) {
 				return "#0077ff";
-			} else if (type == board.TERRAIN_TYPE_PORT) {
+			} else if (type == boardConf.TERRAIN_TYPE_PORT) {
 				return "#7777dd";
-			} else if (type == board.TERRAIN_TYPE_CITY) {
+			} else if (type == boardConf.TERRAIN_TYPE_CITY) {
 				return "green";
 			}
 		})//

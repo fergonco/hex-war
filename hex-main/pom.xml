@@ -63,7 +63,9 @@
 						</capability>
 					</webDriverCapabilities>
 					<haltOnFailure>true</haltOnFailure>
-					<preloadSources>src/main/resources/nfms/jslib/d3_3.5.10.js</preloadSources>
+					<preloadSources>
+						<source>src/main/resources/nfms/jslib/d3_3.5.10.js</source>
+					</preloadSources>
 					<!-- <keepServerAlive>false</keepServerAlive> -->
 					<!-- <additionalContexts> -->
 					<!-- <context> -->
