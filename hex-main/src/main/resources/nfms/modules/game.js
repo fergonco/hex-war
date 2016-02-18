@@ -21,11 +21,12 @@ define([ "message-bus", "plyAutomata", "boardConf" ], function(bus, ply, boardCo
 	});
 
 	function nextPly() {
-		currentPlayer = (currentPlayer + 1) % board.players.length;
+		currentPlayer = (currentPlayer + 1) % board.getPlayerCount();
 		if (currentPlayer == 0) {
 			// TODO update armies
 		}
-		if (board.players[currentPlayer] == "ai") {
+		bus.send("turn", [ currentPlayer ]);
+		if (board.isAIPlayer(currentPlayer)) {
 			aimove();
 			nextPly();
 		} else {

@@ -15,6 +15,12 @@ define([ "message-bus", "boardConf", "hex", "plyAutomata", "d3" ], function(bus,
 				owners.push(-1);
 			}
 		},
+		getPlayerCount : function() {
+			return players.length;
+		},
+		isAIPlayer : function(index) {
+			return players[index] == "ai";
+		},
 		getCenter : function(i) {
 			var row = Math.floor(i / board.cols);
 			var col = Math.floor(i % board.cols);
