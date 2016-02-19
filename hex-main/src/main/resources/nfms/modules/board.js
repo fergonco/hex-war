@@ -7,19 +7,14 @@ define([ "message-bus", "boardConf", "hex", "plyAutomata", "d3" ], function(bus,
 		cols : boardConf.cols,
 		rows : boardConf.rows,
 		players : [ "ai", "human" ],
-		owners : [],
+		owners : new Array(boardConf.cellTypes.length),
 		types : boardConf.cellTypes,
 		armies : [],
-		initialize : function() {
-			for (var i = 0; i < board.cols * board.rows; i++) {
-				owners.push(-1);
-			}
-		},
 		getPlayerCount : function() {
-			return players.length;
+			return board.players.length;
 		},
 		isAIPlayer : function(index) {
-			return players[index] == "ai";
+			return board.players[index] == "ai";
 		},
 		getCenter : function(i) {
 			var row = Math.floor(i / board.cols);
@@ -34,6 +29,19 @@ define([ "message-bus", "boardConf", "hex", "plyAutomata", "d3" ], function(bus,
 				x : x,
 				y : y
 			};
+		},
+		getPlayerCells : function(playerIndex) {
+			var ret = [];
+			for (var i = 0; i < board.owners.length; i++) {
+				if (board.owners[i] == playerIndex) {
+					ret.push({
+						position : i,
+						type : board.types[i]
+					});
+				}
+			}
+
+			return ret;
 		},
 		putArmy : function(player, position, amount) {
 			if (player >= board.players.length) {

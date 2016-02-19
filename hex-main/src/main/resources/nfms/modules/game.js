@@ -20,10 +20,38 @@ define([ "message-bus", "plyAutomata", "boardConf" ], function(bus, ply, boardCo
 		nextPly();
 	});
 
+	bus.listen("endply", function() {
+		nextPly();
+	});
+
 	function nextPly() {
 		currentPlayer = (currentPlayer + 1) % board.getPlayerCount();
 		if (currentPlayer == 0) {
-			// TODO update armies
+			for (var i = 0; i < board.getPlayerCount(); i++) {
+				var playerCells = board.getPlayerCells(i);
+				var cities = [];
+				var armies = 0;
+				for (var j = 0; j < playerCells.length; j++) {
+					var cell = playerCells[j];
+					var city = cell.type == boardConf.TERRAIN_TYPE_CITY;
+					if (!city) {
+						armies = armies + 1;
+					} else if (city && !isCityBesieged(cell.position)) {
+						cities.push(cell.position);
+						armies = armies + 5;
+					}
+				}
+				armyForEachCity = Math.floor(armies / cities.length);
+				for (var j = 0; j < cities.length; j++) {
+					var cityPosition = cities[j];
+					var existingArmy = board.getArmy(cityPosition);
+					if (existingArmy == null) {
+						board.putArmy(i, cityPosition, armyForEachCity);
+					} else {
+						existingArmy.amount += armyForEachCity;
+					}
+				}
+			}
 		}
 		bus.send("turn", [ currentPlayer ]);
 		if (board.isAIPlayer(currentPlayer)) {
@@ -35,7 +63,6 @@ define([ "message-bus", "plyAutomata", "boardConf" ], function(bus, ply, boardCo
 	}
 
 	bus.listen("transition", function(e, action) {
-		console.log("status: " + status);
 		switch (status) {
 		case WAITFORCLICK:
 			switch (action.type) {
@@ -52,7 +79,6 @@ define([ "message-bus", "plyAutomata", "boardConf" ], function(bus, ply, boardCo
 				break;
 			}
 			var validTargets = getValidTargets(sourcePosition);
-			console.log(validTargets);
 			break;
 		case WAITFORDESTINATION:
 			switch (action.type) {
@@ -70,8 +96,21 @@ define([ "message-bus", "plyAutomata", "boardConf" ], function(bus, ply, boardCo
 			}
 			break;
 		}
-		console.log("status: " + status);
 	});
+
+	function isCityBesieged(position) {
+		var isCity = board.types[position] == boardConf.TERRAIN_TYPE_CITY;
+		var playerOwner = board.owners[position];
+		var targets = getValidTargets(position);
+		for (var i = 0; i < targets.length; i++) {
+			var army = board.getArmy(targets[i]);
+			if (army != null && army.player != playerOwner) {
+				return true;
+			}
+		}
+
+		return false;
+	}
 
 	function pushIfValid(array, sourcePosition, targetPosition) {
 		var validMoves = [];

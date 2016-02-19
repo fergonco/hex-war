@@ -6,7 +6,12 @@ body {
 	height: 94%
 }
 
-#allscreen, #board-svg {
+#allscreen {
+	overflow: hidden;
+	height: 100%;
+}
+
+#board-svg {
 	height: 100%;
 	width: 100%;
 }
