@@ -1,5 +1,31 @@
-define([], function() {
-	
+define([ "message-bus" ], function(bus) {
+
+	var cols = null;
+	var sideLength = null;
+
+	bus.listen("start-game", function(e, board) {
+		cols = board.cols;
+	});
+
+	bus.listen("side-length-set", function(e, sLength) {
+		sideLength = sLength;
+	});
+
+	function getCenter(i) {
+		var row = Math.floor(i / cols);
+		var col = Math.floor(i % cols);
+		var x = col * 1.5 * sideLength + sideLength
+		var y = row * 2 * sideLength + sideLength;
+		if (col % 2 == 0) {
+			y += sideLength;
+		}
+
+		return {
+			x : x,
+			y : y
+		};
+	}
+
 	function getHexPath(center, sideLength) {
 		var coords = [];
 		coords.push({
@@ -34,8 +60,9 @@ define([], function() {
 
 		return path + " Z";
 	}
-	
+
 	return {
-		"getHexPath" : getHexPath
+		"getHexPath" : getHexPath,
+		"getCenter" : getCenter
 	}
 });

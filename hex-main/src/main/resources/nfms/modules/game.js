@@ -3,11 +3,9 @@ define([ "message-bus", "plyAutomata", "boardConf" ], function(bus, ply, boardCo
 	var WAITFORCLICK = 0, WAITFORDESTINATION = 1;
 
 	var board = null;
-
 	var currentPlayer;
 
 	var sourcePosition;
-
 	var status;
 
 	bus.listen("start-game", function(e, theBoard) {
@@ -22,10 +20,15 @@ define([ "message-bus", "plyAutomata", "boardConf" ], function(bus, ply, boardCo
 
 	bus.listen("endply", function() {
 		nextPly();
+		bus.send("refresh");
 	});
 
+	function nextPlayer(player) {
+		return (player + 1) % board.getPlayerCount();
+	}
+
 	function nextPly() {
-		currentPlayer = (currentPlayer + 1) % board.getPlayerCount();
+		currentPlayer = nextPlayer(currentPlayer);
 		if (currentPlayer == 0) {
 			for (var i = 0; i < board.getPlayerCount(); i++) {
 				var playerCells = board.getPlayerCells(i);
@@ -55,7 +58,7 @@ define([ "message-bus", "plyAutomata", "boardConf" ], function(bus, ply, boardCo
 		}
 		bus.send("turn", [ currentPlayer ]);
 		if (board.isAIPlayer(currentPlayer)) {
-			aimove();
+			aimove(currentPlayer);
 			nextPly();
 		} else {
 			// go out, it will be called in response to user transitions
@@ -85,8 +88,9 @@ define([ "message-bus", "plyAutomata", "boardConf" ], function(bus, ply, boardCo
 			case ply.CLICKONHEX:
 				var validTargets = getValidTargets(sourcePosition);
 				if (validTargets.indexOf(action.position) != -1) {
-					bus.send("move-army", [ sourcePosition, action.position ]);
+					board.moveArmy(sourcePosition, action.position);
 					status = WAITFORCLICK;
+					bus.send("refresh");
 				}
 				break;
 			case ply.ENDPLY:
@@ -159,7 +163,118 @@ define([ "message-bus", "plyAutomata", "boardConf" ], function(bus, ply, boardCo
 		return ret;
 	}
 
-	function aimove() {
+	function createMoveAction(position, target) {
+		return function(state) {
+			state.moveArmy(position, target);
+		}
+	}
 
+	function getValidActions(currentState, currentPlayer) {
+		// TODO actions should include the end turn increase if it is the last
+		// player
+
+		var ret = [];
+
+		// TODO add all the possible moves from all armies and combine them
+		var armyPositions = currentState.getPlayerArmyPositions(currentPlayer);
+		for (var i = 0; i < armyPositions.length; i++) {
+			var position = armyPositions[i];
+			var army = currentState.getArmy(position);
+			var validTargets = getValidTargets(position);
+			for (var j = 0; j < validTargets.length; j++) {
+				ret.push({
+					"name" : "move to " + validTargets[j],
+					"apply" : createMoveAction(position, validTargets[j])
+				});
+			}
+		}
+
+		// no op
+		ret.push({
+			"name" : "don't move",
+			"apply" : function(state) {
+			}
+		});
+
+		return ret;
+	}
+
+	function cutoff(depth, state) {
+		if (depth > 5) {
+			return true;
+		} else {
+			return false;
+		}
+		// all armies belong to one player
+		// the state is quiescent
+		// No negative singular extensions (free path to a city or so)
+		// explore positive singular
+	}
+
+	function evaluate(state, player) {
+		// TODO implement properly
+		var positions = state.getPlayerArmyPositions(player);
+		var acum = 0;
+		for (var i = 0; i < positions.length; i++) {
+			acum += state.getArmy(positions[i].amount);
+		}
+
+		acum += state.getPlayerCells(player).length;
+		
+		return acum;
+	}
+
+	function aimove(aiPlayer) {
+		var actions = getValidActions(board, aiPlayer);
+		var max = null;
+		var argMax = null;
+		for (var i = 0; i < actions.length; i++) {
+			var state = board.clone();
+			actions[i].apply(state);
+			var value = min(1, nextPlayer(aiPlayer), state);
+			if (max == null || value > max) {
+				max = value;
+				argMax = actions[i];
+			}
+		}
+
+		if (argMax != null) {
+			console.log(argMax.name);
+			argMax.apply(board);
+		}
+	}
+
+	function min(depth, aiPlayer, state) {
+		if (cutoff(depth, state)) {
+			return evaluate(state, aiPlayer);
+		}
+		var actions = getValidActions(state, aiPlayer);
+		var min = null;
+		for (var i = 0; i < actions.length; i++) {
+			var newState = state.clone();
+			actions[i].apply(newState);
+			var value = max(depth + 1, nextPlayer(aiPlayer), newState);
+			if (min == null || value < min) {
+				min = value;
+			}
+		}
+		return min;
+	}
+
+	function max(depth, aiPlayer, state) {
+		if (cutoff(depth, state)) {
+			return evaluate(state, aiPlayer);
+		}
+		var actions = getValidActions(state, aiPlayer);
+		var max = null;
+		for (var i = 0; i < actions.length; i++) {
+			var newState = state.clone();
+			actions[i].apply(newState);
+			var value = min(depth + 1, nextPlayer(aiPlayer), newState);
+			if (max == null || value > max) {
+				max = value;
+			}
+		}
+		return max;
 	}
 });
