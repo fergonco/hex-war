@@ -8,7 +8,8 @@ body {
 
 #allscreen {
 	overflow: hidden;
-	height: 100%;
+	height: 80%;
+	border: 1px solid;
 }
 
 #board-svg {

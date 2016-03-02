@@ -7,7 +7,6 @@ define([ "message-bus", "boardConf", "hex", "plyAutomata", "d3" ], function(bus,
 	var svg = null;
 	var hexIndices = null;
 
-
 	bus.listen("start-game", function(e, newBoard) {
 		board = newBoard;
 
@@ -18,7 +17,7 @@ define([ "message-bus", "boardConf", "hex", "plyAutomata", "d3" ], function(bus,
 			hexIndices.push(u);
 		}
 
-		svg = d3.select("body").append("div").attr("id", "allscreen").append("svg")//
+		svg = d3.select("body").insert("div", ":first-child").attr("id", "allscreen").append("svg")//
 		.attr("id", "board-svg")//
 		.append("g")//
 		.attr("id", "board");
@@ -28,7 +27,12 @@ define([ "message-bus", "boardConf", "hex", "plyAutomata", "d3" ], function(bus,
 
 	bus.listen("refresh", function() {
 		refresh();
-	})
+	});
+
+	bus.listen("show-board", function(e, newBoard) {
+		board = newBoard;
+		refresh();
+	});
 
 	function refresh() {
 		// Hexagons

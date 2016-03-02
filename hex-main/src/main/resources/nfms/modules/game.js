@@ -27,26 +27,35 @@ define([ "message-bus", "plyAutomata", "boardConf" ], function(bus, ply, boardCo
 		return (player + 1) % board.getPlayerCount();
 	}
 
+	function getNextDeal(board, player) {
+		var playerCells = board.getPlayerCells(player);
+		var cities = [];
+		var armies = 0;
+		for (var j = 0; j < playerCells.length; j++) {
+			var cell = playerCells[j];
+			var city = cell.type == boardConf.TERRAIN_TYPE_CITY;
+			if (!city) {
+				armies = armies + 1;
+			} else if (city && !isCityBesieged(cell.position)) {
+				cities.push(cell.position);
+				armies = armies + 5;
+			}
+		}
+
+		return {
+			"armyIncrease" : armies,
+			"cities" : cities
+		}
+	}
+
 	function nextPly() {
 		currentPlayer = nextPlayer(currentPlayer);
 		if (currentPlayer == 0) {
 			for (var i = 0; i < board.getPlayerCount(); i++) {
-				var playerCells = board.getPlayerCells(i);
-				var cities = [];
-				var armies = 0;
-				for (var j = 0; j < playerCells.length; j++) {
-					var cell = playerCells[j];
-					var city = cell.type == boardConf.TERRAIN_TYPE_CITY;
-					if (!city) {
-						armies = armies + 1;
-					} else if (city && !isCityBesieged(cell.position)) {
-						cities.push(cell.position);
-						armies = armies + 5;
-					}
-				}
-				armyForEachCity = Math.floor(armies / cities.length);
-				for (var j = 0; j < cities.length; j++) {
-					var cityPosition = cities[j];
+				var deal = getNextDeal(board, i);
+				var armyForEachCity = Math.floor(deal.armyIncrease / deal.cities.length);
+				for (var j = 0; j < deal.cities.length; j++) {
+					var cityPosition = deal.cities[j];
 					var existingArmy = board.getArmy(cityPosition);
 					if (existingArmy == null) {
 						board.putArmy(i, cityPosition, armyForEachCity);
@@ -58,7 +67,12 @@ define([ "message-bus", "plyAutomata", "boardConf" ], function(bus, ply, boardCo
 		}
 		bus.send("turn", [ currentPlayer ]);
 		if (board.isAIPlayer(currentPlayer)) {
-			aimove(currentPlayer);
+			var lastTree = {
+				"value" : board.clone(),
+				"children" : []
+			};
+			aimove(currentPlayer, lastTree.children);
+			bus.send("move-tree", lastTree);
 			nextPly();
 		} else {
 			// go out, it will be called in response to user transitions
@@ -200,7 +214,7 @@ define([ "message-bus", "plyAutomata", "boardConf" ], function(bus, ply, boardCo
 	}
 
 	function cutoff(depth, state) {
-		if (depth > 5) {
+		if (depth > 2) {
 			return true;
 		} else {
 			return false;
@@ -216,65 +230,97 @@ define([ "message-bus", "plyAutomata", "boardConf" ], function(bus, ply, boardCo
 		var positions = state.getPlayerArmyPositions(player);
 		var acum = 0;
 		for (var i = 0; i < positions.length; i++) {
-			acum += state.getArmy(positions[i].amount);
+			acum += state.getArmy(positions[i]).amount;
 		}
 
 		acum += state.getPlayerCells(player).length;
-		
+
+		var deal = getNextDeal(state, player);
+		acum += deal.cities.length * 10 + deal.armyIncrease;
+
 		return acum;
 	}
 
-	function aimove(aiPlayer) {
+	function aimove(aiPlayer, treeNodes) {
 		var actions = getValidActions(board, aiPlayer);
+		var bestNode = null;
 		var max = null;
 		var argMax = null;
 		for (var i = 0; i < actions.length; i++) {
 			var state = board.clone();
 			actions[i].apply(state);
-			var value = min(1, nextPlayer(aiPlayer), state);
+			var treeNode = {
+				"board" : state,
+				"best" : false,
+				"children" : []
+			};
+			treeNodes.push(treeNode);
+			var value = min(1, aiPlayer, nextPlayer(aiPlayer), state, treeNode.children);
+			treeNode.value = value;
 			if (max == null || value > max) {
 				max = value;
 				argMax = actions[i];
+				bestNode = treeNode;
 			}
 		}
 
 		if (argMax != null) {
-			console.log(argMax.name);
+			bestNode.best = true;
 			argMax.apply(board);
 		}
 	}
 
-	function min(depth, aiPlayer, state) {
+	function min(depth, referencePlayer, aiPlayer, state, treeNodes) {
 		if (cutoff(depth, state)) {
-			return evaluate(state, aiPlayer);
+			return evaluate(state, referencePlayer);
 		}
 		var actions = getValidActions(state, aiPlayer);
+		var bestNode = null;
 		var min = null;
 		for (var i = 0; i < actions.length; i++) {
 			var newState = state.clone();
 			actions[i].apply(newState);
-			var value = max(depth + 1, nextPlayer(aiPlayer), newState);
+			var treeNode = {
+				"board" : newState,
+				"best" : false,
+				"children" : []
+			};
+			treeNodes.push(treeNode);
+			var value = max(depth + 1, referencePlayer, nextPlayer(aiPlayer), newState, treeNode.children);
+			treeNode.value = value;
 			if (min == null || value < min) {
 				min = value;
+				bestNode = treeNode;
 			}
 		}
+		bestNode.best = true;
 		return min;
 	}
 
-	function max(depth, aiPlayer, state) {
+	function max(depth, referencePlayer, aiPlayer, state, treeNodes) {
 		if (cutoff(depth, state)) {
-			return evaluate(state, aiPlayer);
+			return evaluate(state, referencePlayer);
 		}
 		var actions = getValidActions(state, aiPlayer);
+		var bestNode = null;
 		var max = null;
 		for (var i = 0; i < actions.length; i++) {
 			var newState = state.clone();
 			actions[i].apply(newState);
-			var value = min(depth + 1, nextPlayer(aiPlayer), newState);
+			var treeNode = {
+				"board" : newState,
+				"best" : false,
+				"children" : []
+			};
+			treeNodes.push(treeNode);
+			var value = min(depth + 1, referencePlayer, nextPlayer(aiPlayer), newState, treeNode.children);
+			treeNode.value = value;
 			if (max == null || value > max) {
 				max = value;
+				bestNode = treeNode;
 			}
 		}
+		bestNode.best = true;
 		return max;
 	}
 });
